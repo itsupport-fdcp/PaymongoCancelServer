@@ -127,7 +127,7 @@ app.get("/api/payment-method/:id", async (req, res) => {
 
 // Resolve card brand/last4 via the PaymentIntent endpoint.
 // Called by the frontend as: GET /api/payments?payment_intent_id=pi_xxx
-// The payment intent attributes.payments[] contain source.brand, source.last4, etc.
+// Fetches /v1/payment_intents/:id — attributes.payments[] has source info.
 app.get("/api/payments", async (req, res) => {
   try {
     const { payment_intent_id } = req.query;
@@ -135,13 +135,13 @@ app.get("/api/payments", async (req, res) => {
       return res.status(400).json({ error: "payment_intent_id is required" });
     }
 
-    // ✅ Correct endpoint: /v1/payments?payment_intent_id=xxx
     const result = await paymongGet(
-      `${BASE_URL}/payments?payment_intent_id=${encodeURIComponent(payment_intent_id)}`,
+      `${BASE_URL}/payment_intents/${encodeURIComponent(payment_intent_id)}`,
     );
 
-    // result.data is already the payments array
-    res.json({ data: result.data ?? [] });
+    // attributes.payments is the array of payment objects on the intent
+    const payments = result.data?.attributes?.payments ?? [];
+    res.json({ data: payments });
   } catch (err) {
     console.error("Payments fetch error:", err.message);
     res.status(500).json({ error: err.message });

@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PayMongo Subscriptions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              paymongo: {
+                DEFAULT: "#00ad5f",
+                dark: "#008f4e",
+                light: "#d1fadf",
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      @keyframes shimmer {
+        0% {
+          background-position: -600px 0;
+        }
+        100% {
+          background-position: 600px 0;
+        }
+      }
+      .skeleton {
+        background: linear-gradient(
+          90deg,
+          #f0f0f0 25%,
+          #e0e0e0 50%,
+          #f0f0f0 75%
+        );
+        background-size: 600px 100%;
+        animation: shimmer 1.4s infinite linear;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #bbb;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 text-gray-900 font-sans min-h-screen">
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-gray-200 py-4 px-6 sticky top-0 z-40">
+      <div
+        class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-8 h-8 bg-paymongo rounded-lg flex items-center justify-center"
+          >
+            <svg
+              class="w-5 h-5 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                d="M13 10V3L4 14h7v7l9-11h-7z"
+              />
+            </svg>
+          </div>
+          <h1 class="text-xl font-bold tracking-tight">
+            PayMongo
+            <span class="text-gray-500 font-medium text-lg ml-1"
+              >Subscriptions</span
+            >
+          </h1>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="relative">
+            <span
+              class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+            >
+              <svg
+                class="h-4 w-4 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </span>
+            <input
+              type="text"
+              id="search"
+              placeholder="Search ID or email..."
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-paymongo focus:border-paymongo sm:text-sm transition"
+            />
+          </div>
+          <button
+            id="btn-load"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-paymongo hover:bg-paymongo-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-paymongo transition-colors"
+          >
+            Refresh Data
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Stats -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">
+            Total
+          </p>
+          <p class="text-3xl font-bold text-gray-900 mt-1" id="count-total">
+            —
+          </p>
+        </div>
+        <div
+          class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-paymongo"
+        >
+          <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">
+            Active
+          </p>
+          <p class="text-3xl font-bold text-paymongo mt-1" id="count-active">
+            —
+          </p>
+        </div>
+        <div
+          class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-red-500"
+        >
+          <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">
+            Cancelled
+          </p>
+          <p class="text-3xl font-bold text-red-600 mt-1" id="count-cancelled">
+            —
+          </p>
+        </div>
+        <div
+          class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-yellow-400"
+        >
+          <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">
+            Paused
+          </p>
+          <p class="text-3xl font-bold text-yellow-600 mt-1" id="count-paused">
+            —
+          </p>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div
+        class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4"
+      >
+        <div class="flex items-center gap-2">
+          <label for="filter-status" class="text-sm font-medium text-gray-700"
+            >Filter:</label
+          >
+          <select
+            id="filter-status"
+            class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-paymongo focus:border-paymongo sm:text-sm rounded-md border"
+          >
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="paused">Paused</option>
+            <option value="incomplete">Incomplete</option>
+          </select>
+        </div>
+        <div id="status" class="text-sm text-gray-500 font-medium italic"></div>
+      </div>
+
+      <!-- Table -->
+      <div
+        class="bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden"
+      >
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                >
+                  ID
+                </th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                >
+                  Payment Method
+                </th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                >
+                  Status
+                </th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                >
+                  Email
+                </th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                >
+                  Plan
+                </th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                >
+                  Amount
+                </th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                >
+                  Interval
+                </th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                >
+                  Created
+                </th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                >
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody id="table-body" class="bg-white divide-y divide-gray-200">
+              <tr>
+                <td
+                  colspan="9"
+                  class="px-6 py-12 text-center text-gray-400 italic"
+                >
+                  Click "Refresh Data" to fetch subscriptions.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div
+        id="pagination"
+        class="hidden mt-4 flex items-center justify-between text-sm text-gray-600"
+      >
+        <span id="page-info"></span>
+        <div class="flex items-center gap-1">
+          <button
+            id="btn-first"
+            class="px-2 py-1 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            «
+          </button>
+          <button
+            id="btn-prev"
+            class="px-3 py-1 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            ‹ Prev
+          </button>
+          <div id="page-numbers" class="flex gap-1"></div>
+          <button
+            id="btn-next"
+            class="px-3 py-1 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Next ›
+          </button>
+          <button
+            id="btn-last"
+            class="px-2 py-1 rounded border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            »
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-gray-500">Rows:</label>
+          <select
+            id="page-size"
+            class="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-paymongo"
+          >
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+    </main>
+
+    <!-- Detail Drawer -->
+    <div
+      id="drawer-overlay"
+      class="fixed inset-0 bg-gray-900 bg-opacity-50 transition-opacity opacity-0 pointer-events-none z-50"
+    ></div>
+    <div
+      id="drawer"
+      class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 ease-in-out overflow-y-auto"
+    >
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-bold text-gray-900">
+            <span id="drawer-title">Subscription</span>
+          </h2>
+          <button
+            id="drawer-close"
+            class="text-gray-400 hover:text-gray-500 p-1 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <svg
+              class="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="mb-6">
+          <p
+            class="text-xs font-mono text-gray-400 uppercase tracking-widest mb-1"
+          >
+            Subscription ID
+          </p>
+          <p
+            class="text-sm font-mono font-medium text-gray-700 break-all bg-gray-50 p-2 rounded"
+            id="drawer-id"
+          ></p>
+        </div>
+        <div id="drawer-content" class="space-y-8"></div>
+        <div class="mt-10 border-t border-gray-100 pt-6">
+          <button
+            id="drawer-cancel-btn"
+            class="hidden w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-semibold rounded-lg shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+          >
+            Cancel Subscription
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let allData = [];
+      const customerCache = {};
+
+      // ─── Source cache: payment_intent_id → attributes.source ──────────────
+      // PayMongo Payment objects carry:  attributes.source = { id, type, brand, last4, country }
+      const sourceCache = {};
+
+      /**
+       * Fetches GET /api/payments?payment_intent_id=<piId>
+       * and returns the first payment's attributes.source object.
+       *
+       * Your backend must proxy this route to:
+       *   https://api.paymongo.com/v1/payments?payment_intent_id=<piId>
+       */
+      async function fetchSourceByPI(piId) {
+        if (!piId) return null;
+        if (sourceCache[piId] !== undefined) return sourceCache[piId];
+        try {
+          const res = await fetch(
+            `/api/payments?payment_intent_id=${encodeURIComponent(piId)}`,
+          );
+          const json = await res.json();
+          const payments = Array.isArray(json.data) ? json.data : [];
+          let found = null;
+          for (const pmt of payments) {
+            const s = pmt?.attributes?.source;
+            if (s) {
+              found = s;
+              break;
+            }
+          }
+          sourceCache[piId] = found;
+          return found;
+        } catch {
+          sourceCache[piId] = null;
+          return null;
+        }
+      }
+
+      async function fetchEmail(cid) {
+        if (customerCache[cid] !== undefined) return customerCache[cid];
+        try {
+          const res = await fetch(`/api/customer/${cid}`);
+          const json = await res.json();
+          customerCache[cid] = json?.attributes?.email || "—";
+        } catch {
+          customerCache[cid] = "—";
+        }
+        return customerCache[cid];
+      }
+
+      // ─── Card chip HTML ───────────────────────────────────────────────────
+      const BRAND_BG = {
+        visa: "#1a1f71",
+        mastercard: "#eb001b",
+        jcb: "#003087",
+        amex: "#2e77bc",
+        "american express": "#2e77bc",
+      };
+      const EWALLET = {
+        gcash: "GCash",
+        grab_pay: "GrabPay",
+        paymaya: "Maya",
+        maya: "Maya",
+        dob: "Online Banking",
+      };
+
+      function cardChip(src) {
+        if (!src) return '<span class="text-gray-400 text-sm">—</span>';
+        const type = (src.type || "").toLowerCase();
+        if (EWALLET[type]) {
+          return `<span class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600">${EWALLET[type]}</span>`;
+        }
+        if (type) return `<span class="text-sm text-gray-700 capitalize">${type}</span>`;
+        return '<span class="text-gray-400 text-sm">—</span>';
+      }
+
+      // ─── Skeleton ─────────────────────────────────────────────────────────
+      const skeletonCell = `<td class="px-6 py-4"><div class="skeleton h-4 w-full rounded"></div></td>`;
+      const skeletonRow = `<tr>${skeletonCell.repeat(9)}</tr>`;
+      const showSkeletonStats = () =>
+        [
+          "count-total",
+          "count-active",
+          "count-cancelled",
+          "count-paused",
+        ].forEach(
+          (id) =>
+            (document.getElementById(id).innerHTML =
+              `<div class="skeleton h-8 w-12 rounded"></div>`),
+        );
+      const showSkeletonTable = (n = 8) =>
+        (document.getElementById("table-body").innerHTML =
+          skeletonRow.repeat(n));
+
+      // ─── Load ─────────────────────────────────────────────────────────────
+      let abortController = null;
+
+      async function loadAll() {
+        if (abortController) abortController.abort();
+        abortController = new AbortController();
+        const btn = document.getElementById("btn-load");
+        const statusEl = document.getElementById("status");
+        btn.disabled = true;
+        btn.classList.add("opacity-50", "cursor-not-allowed");
+        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>Loading...`;
+        allData = [];
+        currentPage = 1;
+        showSkeletonStats();
+        showSkeletonTable();
+        statusEl.textContent = "Fetching subscriptions…";
+        try {
+          await fetchPages(null, abortController.signal);
+        } catch (err) {
+          if (err.name === "AbortError") return;
+          statusEl.textContent = "Failed: " + err.message;
+          document.getElementById("table-body").innerHTML =
+            `<tr><td colspan="9" class="px-6 py-12 text-center text-red-400">${err.message}</td></tr>`;
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove("opacity-50", "cursor-not-allowed");
+          btn.textContent = "Refresh Data";
+        }
+      }
+
+      async function fetchPages(after, signal) {
+        const statusEl = document.getElementById("status");
+        const filter = document.getElementById("filter-status").value;
+        let url = `/api/subscriptions?limit=50`;
+        if (after) url += `&after=${after}`;
+        if (filter) url += `&status=${filter}`;
+
+        const res = await fetch(url, { signal });
+        if (!res.ok) throw new Error(`Error ${res.status}`);
+        const result = await res.json();
+        const batch = result.data || [];
+        allData.push(...batch);
+        updateStats();
+        statusEl.textContent = `Loaded ${allData.length} subscriptions…`;
+
+        // Collect unique customer IDs and payment-intent IDs
+        const cids = [
+          ...new Set(
+            batch.map((s) => s.attributes.customer_id).filter(Boolean),
+          ),
+        ];
+        const piIds = [
+          ...new Set(
+            batch
+              .map((s) => s.attributes.latest_invoice?.payment_intent?.id)
+              .filter(Boolean),
+          ),
+        ];
+
+        // Fetch emails + payment sources in parallel
+        await Promise.all([
+          ...cids.map(fetchEmail),
+          ...piIds.map(fetchSourceByPI),
+        ]);
+
+        renderTable();
+
+        if (result.has_more && batch.length > 0) {
+          return fetchPages(batch[batch.length - 1].id, signal);
+        } else {
+          statusEl.textContent = `${allData.length} subscriptions loaded.`;
+        }
+      }
+
+      // ─── Stats ────────────────────────────────────────────────────────────
+      function updateStats() {
+        const c = (s) =>
+          allData.filter((x) => x.attributes.status === s).length;
+        document.getElementById("count-total").textContent = allData.length;
+        document.getElementById("count-active").textContent = c("active");
+        document.getElementById("count-cancelled").textContent = c("cancelled");
+        document.getElementById("count-paused").textContent = c("paused");
+      }
+
+      function getBadge(status) {
+        const base =
+          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ";
+        return (
+          base +
+          ({
+            active: "bg-green-100 text-green-800",
+            cancelled: "bg-red-100 text-red-800",
+            paused: "bg-yellow-100 text-yellow-800",
+          }[status] || "bg-gray-100 text-gray-800")
+        );
+      }
+
+      // ─── Inline cancel ────────────────────────────────────────────────────
+      async function cancelSub(id, btn) {
+        if (!confirm(`Cancel subscription ${id}?\nThis cannot be undone.`))
+          return;
+        btn.disabled = true;
+        btn.textContent = "…";
+        btn.classList.add("opacity-50");
+        try {
+          const res = await fetch(`/api/subscriptions/${id}/cancel`, {
+            method: "POST",
+          });
+          if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            alert("Failed: " + (e.error || res.statusText));
+            btn.disabled = false;
+            btn.textContent = "Cancel";
+            btn.classList.remove("opacity-50");
+            return;
+          }
+          const sub = allData.find((s) => s.id === id);
+          if (sub) sub.attributes.status = "cancelled";
+          updateStats();
+          renderTable();
+        } catch (e) {
+          alert("Error: " + e.message);
+          btn.disabled = false;
+          btn.textContent = "Cancel";
+          btn.classList.remove("opacity-50");
+        }
+      }
+
+      // ─── Render ───────────────────────────────────────────────────────────
+      let currentPage = 1;
+
+      function renderTable() {
+        const search = document.getElementById("search").value.toLowerCase();
+        const filter = document.getElementById("filter-status").value;
+        const pageSize = parseInt(document.getElementById("page-size").value);
+
+        const filtered = allData.filter((sub) => {
+          const a = sub.attributes;
+          const email = (customerCache[a.customer_id] || "").toLowerCase();
+          const piId = (a.latest_invoice?.payment_intent?.id || "").toLowerCase();
+          return (
+            (!search ||
+              sub.id.toLowerCase().includes(search) ||
+              email.includes(search) ||
+              piId.includes(search)) &&
+            (!filter || a.status === filter)
+          );
+        });
+
+        const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+        if (currentPage > totalPages) currentPage = totalPages;
+        const start = (currentPage - 1) * pageSize;
+        const paged = filtered.slice(start, start + pageSize);
+        const tbody = document.getElementById("table-body");
+        const pager = document.getElementById("pagination");
+
+        if (!filtered.length) {
+          tbody.innerHTML = `<tr><td colspan="9" class="px-6 py-12 text-center text-gray-400 italic">No subscriptions found.</td></tr>`;
+          pager.classList.add("hidden");
+          return;
+        }
+
+        tbody.innerHTML = paged
+          .map((sub) => {
+            const a = sub.attributes;
+            const piId = a.latest_invoice?.payment_intent?.id;
+            const src = piId ? (sourceCache[piId] ?? null) : null;
+
+            const amount =
+              a.plan?.amount != null
+                ? `PHP ${(a.plan.amount / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+                : "—";
+            const interval = a.plan?.interval
+              ? `${a.plan.interval_count || 1} ${a.plan.interval}`
+              : "—";
+            const created = a.created_at
+              ? new Date(a.created_at * 1000).toLocaleDateString()
+              : "—";
+            const actionCell =
+              a.status === "active"
+                ? `<button class="cancel-btn inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 hover:border-red-300 transition-colors" data-id="${sub.id}">Cancel</button>`
+                : `<span class="text-xs text-gray-300">—</span>`;
+
+            return `<tr data-id="${sub.id}" class="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100">
+            <td class="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-500">${sub.id}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${cardChip(src)}</td>
+            <td class="px-6 py-4 whitespace-nowrap"><span class="${getBadge(a.status)}">${a.status}</span></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${customerCache[a.customer_id] || "—"}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${a.plan?.name || "—"}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">${amount}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${interval}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${created}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${actionCell}</td>
+          </tr>`;
+          })
+          .join("");
+
+        // Pagination controls
+        pager.classList.remove("hidden");
+        document.getElementById("page-info").textContent =
+          `${start + 1}–${Math.min(start + pageSize, filtered.length)} of ${filtered.length}`;
+        document.getElementById("btn-first").disabled = currentPage === 1;
+        document.getElementById("btn-prev").disabled = currentPage === 1;
+        document.getElementById("btn-next").disabled =
+          currentPage === totalPages;
+        document.getElementById("btn-last").disabled =
+          currentPage === totalPages;
+
+        let lo = Math.max(1, currentPage - 2),
+          hi = Math.min(totalPages, lo + 4);
+        lo = Math.max(1, hi - 4);
+        const range = [];
+        for (let i = lo; i <= hi; i++) range.push(i);
+        document.getElementById("page-numbers").innerHTML = range
+          .map(
+            (p) =>
+              `<button class="px-3 py-1 rounded border text-sm ${p === currentPage ? "bg-paymongo text-white border-paymongo font-semibold" : "border-gray-200 hover:bg-gray-100"}" onclick="goToPage(${p})">${p}</button>`,
+          )
+          .join("");
+      }
+
+      function goToPage(p) {
+        currentPage = p;
+        renderTable();
+      }
+
+      // ─── Table delegation ─────────────────────────────────────────────────
+      document.getElementById("table-body").addEventListener("click", (e) => {
+        const cb = e.target.closest(".cancel-btn");
+        if (cb) {
+          e.stopPropagation();
+          cancelSub(cb.dataset.id, cb);
+          return;
+        }
+        const row = e.target.closest("tr[data-id]");
+        if (row) {
+          const s = allData.find((x) => x.id === row.dataset.id);
+          if (s) openDrawer(s);
+        }
+      });
+
+      // ─── Pagination wiring ────────────────────────────────────────────────
+      document.getElementById("btn-first").addEventListener("click", () => {
+        currentPage = 1;
+        renderTable();
+      });
+      document.getElementById("btn-prev").addEventListener("click", () => {
+        currentPage--;
+        renderTable();
+      });
+      document.getElementById("btn-next").addEventListener("click", () => {
+        currentPage++;
+        renderTable();
+      });
+      document.getElementById("btn-last").addEventListener("click", () => {
+        currentPage = Math.ceil(
+          allData.length / parseInt(document.getElementById("page-size").value),
+        );
+        renderTable();
+      });
+      document.getElementById("page-size").addEventListener("change", () => {
+        currentPage = 1;
+        renderTable();
+      });
+      document.getElementById("search").addEventListener("input", () => {
+        currentPage = 1;
+        renderTable();
+      });
+      document
+        .getElementById("filter-status")
+        .addEventListener("change", loadAll);
+      document.getElementById("btn-load").addEventListener("click", loadAll);
+
+      // ─── Drawer ───────────────────────────────────────────────────────────
+      const drawer = document.getElementById("drawer");
+      const drawerOverlay = document.getElementById("drawer-overlay");
+      const drawerCancel = document.getElementById("drawer-cancel-btn");
+
+      const mkSection = (title, rows) => `
+        <div class="space-y-3">
+          <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2">${title}</h3>
+          <div class="space-y-2">${rows
+            .map(
+              (r) => `
+            <div class="flex justify-between text-sm py-1 gap-4">
+              <span class="text-gray-500">${r.k}</span>
+              <span class="text-gray-900 font-medium text-right ${r.mono ? "font-mono text-xs" : ""}">${r.v}</span>
+            </div>`,
+            )
+            .join("")}
+          </div>
+        </div>`;
+
+      async function openDrawer(sub) {
+        const a = sub.attributes;
+        const fmt = (ts) => (ts ? new Date(ts * 1000).toLocaleString() : "—");
+        const php = (v) =>
+          v != null
+            ? `PHP ${(v / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+            : "—";
+
+        document.getElementById("drawer-title").innerHTML =
+          `<span class="mr-2">${a.plan?.name || "Subscription"}</span><span class="${getBadge(a.status)}">${a.status}</span>`;
+        document.getElementById("drawer-id").textContent = sub.id;
+        drawer.classList.remove("translate-x-full");
+        drawerOverlay.classList.remove("opacity-0", "pointer-events-none");
+        drawerCancel.classList.toggle("hidden", a.status !== "active");
+        drawerCancel.dataset.id = sub.id;
+
+        const piId = a.latest_invoice?.payment_intent?.id;
+        let src = piId ? (sourceCache[piId] ?? undefined) : null;
+
+        // If not yet fetched, fetch now
+        if (piId && src === undefined) src = await fetchSourceByPI(piId);
+
+        const pmRows = src
+          ? [
+              ...(src.type ? [{ k: "Type", v: src.type }] : []),
+              ...(src.country ? [{ k: "Country", v: src.country }] : []),
+            ]
+          : [
+              {
+                k: "Payment Method ID",
+                v:
+                  a.default_customer_payment_method_id ||
+                  a.payment_method_id ||
+                  "—",
+                mono: true,
+              },
+            ];
+
+        document.getElementById("drawer-content").innerHTML = `
+          ${mkSection("Customer Details", [
+            { k: "Email", v: customerCache[a.customer_id] || "—" },
+            { k: "Customer ID", v: a.customer_id || "—", mono: true },
+          ])}
+          ${mkSection("Plan Details", [
+            { k: "Plan Name", v: a.plan?.name || "—" },
+            { k: "Amount", v: php(a.plan?.amount) },
+            {
+              k: "Billing Interval",
+              v: `${a.plan?.interval_count || 1} ${a.plan?.interval || "—"}`,
+            },
+            { k: "Cycle Count", v: a.plan?.cycle_count ?? "Infinity" },
+          ])}
+          ${mkSection("Schedule", [
+            { k: "Created At", v: fmt(a.created_at) },
+            {
+              k: "Anchor Date",
+              v: a.anchor_date
+                ? new Date(a.anchor_date * 1000).toLocaleDateString()
+                : "—",
+            },
+            {
+              k: "Next Billing",
+              v: a.next_billing_schedule
+                ? new Date(a.next_billing_schedule * 1000).toLocaleDateString()
+                : "—",
+            },
+            ...(a.cancelled_at
+              ? [{ k: "Cancelled At", v: fmt(a.cancelled_at) }]
+              : []),
+            ...(a.cancellation_reason
+              ? [{ k: "Reason", v: a.cancellation_reason }]
+              : []),
+          ])}
+          ${mkSection("Latest Invoice", [
+            { k: "Invoice ID", v: a.latest_invoice?.id || "—", mono: true },
+            { k: "Invoice Amount", v: php(a.latest_invoice?.amount) },
+            { k: "Invoice Status", v: a.latest_invoice?.status || "—" },
+            { k: "Payment Intent ID", v: piId || "—", mono: true },
+            {
+              k: "Payment Status",
+              v: a.latest_invoice?.payment_intent?.status || "—",
+            },
+          ])}
+          ${mkSection("Payment Method", pmRows)}`;
+
+        // Refresh table chip if we just fetched
+        if (piId) renderTable();
+      }
+
+      function closeDrawer() {
+        drawer.classList.add("translate-x-full");
+        drawerOverlay.classList.add("opacity-0", "pointer-events-none");
+      }
+
+      document
+        .getElementById("drawer-close")
+        .addEventListener("click", closeDrawer);
+      drawerOverlay.addEventListener("click", closeDrawer);
+
+      drawerCancel.addEventListener("click", async () => {
+        const id = drawerCancel.dataset.id;
+        if (!confirm(`Cancel subscription ${id}?\nThis cannot be undone.`))
+          return;
+        drawerCancel.disabled = true;
+        drawerCancel.textContent = "Cancelling…";
+        drawerCancel.classList.add("opacity-50");
+        try {
+          const res = await fetch(`/api/subscriptions/${id}/cancel`, {
+            method: "POST",
+          });
+          if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            alert("Failed: " + (e.error || res.statusText));
+            drawerCancel.disabled = false;
+            drawerCancel.textContent = "Cancel Subscription";
+            drawerCancel.classList.remove("opacity-50");
+            return;
+          }
+          const sub = allData.find((s) => s.id === id);
+          if (sub) sub.attributes.status = "cancelled";
+          updateStats();
+          renderTable();
+          closeDrawer();
+        } catch (e) {
+          alert("Error: " + e.message);
+          drawerCancel.disabled = false;
+          drawerCancel.textContent = "Cancel Subscription";
+          drawerCancel.classList.remove("opacity-50");
+        }
+      });
+
+      loadAll();
+    </script>
+  </body>
+</html>

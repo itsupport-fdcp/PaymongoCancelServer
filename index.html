@@ -60,7 +60,7 @@
     <!-- Navbar -->
     <nav class="bg-white border-b border-gray-200 py-4 px-6 sticky top-0 z-40">
       <div
-        class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4"
+        class="w-full flex flex-col md:flex-row md:items-center justify-between gap-4"
       >
         <div class="flex items-center gap-3">
           <div
@@ -114,6 +114,15 @@
             />
           </div>
           <button
+            id="btn-export"
+            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-paymongo transition-colors"
+          >
+            <svg class="w-4 h-4 mr-1.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Export CSV
+          </button>
+          <button
             id="btn-load"
             class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-paymongo hover:bg-paymongo-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-paymongo transition-colors"
           >
@@ -123,7 +132,7 @@
       </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="w-full px-4 sm:px-6 py-8">
       <!-- Stats -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -197,47 +206,47 @@
             <thead class="bg-gray-50">
               <tr>
                 <th
-                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
                 >
                   ID
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
                 >
                   Payment Method
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
                 >
                   Status
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
                 >
                   Email
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
                 >
                   Plan
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
                 >
                   Amount
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
                 >
                   Interval
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
                 >
                   Created
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
                 >
                   Action
                 </th>
@@ -361,7 +370,33 @@
       </div>
     </div>
 
+    <!-- Global Loader -->
+    <div
+      id="global-loader"
+      class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] transition-opacity duration-300 opacity-0 pointer-events-none"
+    >
+      <div class="flex flex-col items-center gap-4">
+        <div class="relative w-16 h-16">
+          <div class="absolute inset-0 border-4 border-white border-opacity-20 rounded-full"></div>
+          <div class="absolute inset-0 border-4 border-paymongo border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <p id="loader-text" class="text-white font-medium tracking-wide drop-shadow-sm">Processing...</p>
+      </div>
+    </div>
+
     <script>
+      const loader = document.getElementById("global-loader");
+      const loaderText = document.getElementById("loader-text");
+
+      function showLoader(text = "Processing...") {
+        loaderText.textContent = text;
+        loader.classList.remove("opacity-0", "pointer-events-none");
+      }
+
+      function hideLoader() {
+        loader.classList.add("opacity-0", "pointer-events-none");
+      }
+
       let allData = [];
       const customerCache = {};
 
@@ -472,6 +507,7 @@
         currentPage = 1;
         showSkeletonStats();
         showSkeletonTable();
+        showLoader("Fetching latest subscriptions...");
         statusEl.textContent = "Fetching subscriptions…";
         try {
           await fetchPages(null, abortController.signal);
@@ -484,6 +520,7 @@
           btn.disabled = false;
           btn.classList.remove("opacity-50", "cursor-not-allowed");
           btn.textContent = "Refresh Data";
+          hideLoader();
         }
       }
 
@@ -561,6 +598,7 @@
         btn.disabled = true;
         btn.textContent = "…";
         btn.classList.add("opacity-50");
+        showLoader("Cancelling subscription...");
         try {
           const res = await fetch(`/api/subscriptions/${id}/cancel`, {
             method: "POST",
@@ -582,6 +620,8 @@
           btn.disabled = false;
           btn.textContent = "Cancel";
           btn.classList.remove("opacity-50");
+        } finally {
+          hideLoader();
         }
       }
 
@@ -856,6 +896,7 @@
         drawerCancel.disabled = true;
         drawerCancel.textContent = "Cancelling…";
         drawerCancel.classList.add("opacity-50");
+        showLoader("Cancelling subscription...");
         try {
           const res = await fetch(`/api/subscriptions/${id}/cancel`, {
             method: "POST",
@@ -878,10 +919,92 @@
           drawerCancel.disabled = false;
           drawerCancel.textContent = "Cancel Subscription";
           drawerCancel.classList.remove("opacity-50");
+        } finally {
+          hideLoader();
         }
       });
 
       loadAll();
+
+      // ─── Export CSV ───────────────────────────────────────────────────────
+      document.getElementById("btn-export").addEventListener("click", () => {
+        const search = document.getElementById("search").value.toLowerCase();
+        const filter = document.getElementById("filter-status").value;
+
+        const filtered = allData.filter((sub) => {
+          const a = sub.attributes;
+          const email = (customerCache[a.customer_id] || "").toLowerCase();
+          const piId = (a.latest_invoice?.payment_intent?.id || "").toLowerCase();
+          return (
+            (!search ||
+              sub.id.toLowerCase().includes(search) ||
+              email.includes(search) ||
+              piId.includes(search)) &&
+            (!filter || a.status === filter)
+          );
+        });
+
+        if (!filtered.length) {
+          alert("No data to export.");
+          return;
+        }
+
+        const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+        const headers = [
+          "ID", "Status", "Email", "Customer ID",
+          "Payment Method", "Plan Name", "Amount (PHP)", "Interval",
+          "Invoice ID", "Invoice Status", "Payment Intent ID",
+          "Created At", "Next Billing", "Cancelled At",
+        ];
+
+        const rows = filtered.map((sub) => {
+          const a = sub.attributes;
+          const piId = a.latest_invoice?.payment_intent?.id || "";
+          const src = piId ? (sourceCache[piId] ?? null) : null;
+          const paymentMethod = src
+            ? (EWALLET[src.type?.toLowerCase()] || src.type || "")
+            : "";
+          const amount = a.plan?.amount != null ? (a.plan.amount / 100).toFixed(2) : "";
+          const interval = a.plan?.interval
+            ? `${a.plan.interval_count || 1} ${a.plan.interval}`
+            : "";
+          const created = a.created_at
+            ? new Date(a.created_at * 1000).toLocaleString()
+            : "";
+          const nextBilling = a.next_billing_schedule
+            ? new Date(a.next_billing_schedule * 1000).toLocaleDateString()
+            : "";
+          const cancelledAt = a.cancelled_at
+            ? new Date(a.cancelled_at * 1000).toLocaleString()
+            : "";
+
+          return [
+            sub.id,
+            a.status,
+            customerCache[a.customer_id] || "",
+            a.customer_id || "",
+            paymentMethod,
+            a.plan?.name || "",
+            amount,
+            interval,
+            a.latest_invoice?.id || "",
+            a.latest_invoice?.status || "",
+            piId,
+            created,
+            nextBilling,
+            cancelledAt,
+          ].map(esc).join(",");
+        });
+
+        const csv = [headers.map(esc).join(","), ...rows].join("\r\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `subscriptions_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
     </script>
   </body>
 </html>

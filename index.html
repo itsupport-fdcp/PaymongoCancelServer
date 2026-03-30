@@ -123,6 +123,15 @@
             Export CSV
           </button>
           <button
+            id="btn-bulk-cancel"
+            class="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md shadow-sm text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+          >
+            <svg class="w-4 h-4 mr-1.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            Bulk Cancel
+          </button>
+          <button
             id="btn-load"
             class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-paymongo hover:bg-paymongo-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-paymongo transition-colors"
           >
@@ -370,7 +379,59 @@
       </div>
     </div>
 
-    <!-- Global Loader -->
+    <!-- Bulk Cancel Modal -->
+    <div
+      id="bulk-cancel-modal"
+      class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-[90]"
+    >
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
+        <div class="flex items-center justify-between mb-1">
+          <h2 class="text-lg font-bold text-gray-900">Bulk Cancel Subscriptions</h2>
+          <button
+            id="bulk-cancel-close"
+            class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <p class="text-sm text-gray-500 mb-3">
+          Paste subscription IDs below — one per line or comma-separated.
+        </p>
+        <textarea
+          id="bulk-ids-input"
+          rows="8"
+          placeholder="sub_xxxxxxxxxxxx&#10;sub_yyyyyyyyyyyy&#10;sub_zzzzzzzzzzzz"
+          class="w-full border border-gray-300 rounded-md p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+        ></textarea>
+        <div id="bulk-progress" class="hidden mt-3 text-sm font-medium text-gray-600"></div>
+        <div
+          id="bulk-results"
+          class="hidden mt-2 max-h-44 overflow-y-auto border border-gray-100 rounded-md bg-gray-50 p-3 text-xs font-mono space-y-1"
+        ></div>
+        <div class="mt-4 flex items-center justify-between gap-3">
+          <span id="bulk-count-preview" class="text-xs text-gray-400"></span>
+          <div class="flex gap-2">
+            <button
+              id="bulk-cancel-close2"
+              class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Close
+            </button>
+            <button
+              id="btn-do-bulk-cancel"
+              class="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Cancel All
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Global Loader (commented out) -->
+    <!--
     <div
       id="global-loader"
       class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] transition-opacity duration-300 opacity-0 pointer-events-none"
@@ -383,18 +444,21 @@
         <p id="loader-text" class="text-white font-medium tracking-wide drop-shadow-sm">Processing...</p>
       </div>
     </div>
+    -->
 
     <script>
       const loader = document.getElementById("global-loader");
       const loaderText = document.getElementById("loader-text");
 
       function showLoader(text = "Processing...") {
-        loaderText.textContent = text;
-        loader.classList.remove("opacity-0", "pointer-events-none");
+        // loader disabled
+        // loaderText.textContent = text;
+        // loader.classList.remove("opacity-0", "pointer-events-none");
       }
 
       function hideLoader() {
-        loader.classList.add("opacity-0", "pointer-events-none");
+        // loader disabled
+        // loader.classList.add("opacity-0", "pointer-events-none");
       }
 
       let allData = [];
@@ -526,10 +590,8 @@
 
       async function fetchPages(after, signal) {
         const statusEl = document.getElementById("status");
-        const filter = document.getElementById("filter-status").value;
         let url = `/api/subscriptions?limit=50`;
         if (after) url += `&after=${after}`;
-        if (filter) url += `&status=${filter}`;
 
         const res = await fetch(url, { signal });
         if (!res.ok) throw new Error(`Error ${res.status}`);
@@ -767,7 +829,10 @@
       });
       document
         .getElementById("filter-status")
-        .addEventListener("change", loadAll);
+        .addEventListener("change", () => {
+          currentPage = 1;
+          renderTable();
+        });
       document.getElementById("btn-load").addEventListener("click", loadAll);
 
       // ─── Drawer ───────────────────────────────────────────────────────────
@@ -925,6 +990,118 @@
       });
 
       loadAll();
+
+      // ─── Bulk Cancel ──────────────────────────────────────────────────────
+      const bulkModal = document.getElementById("bulk-cancel-modal");
+      const bulkIdsInput = document.getElementById("bulk-ids-input");
+      const bulkProgress = document.getElementById("bulk-progress");
+      const bulkResults = document.getElementById("bulk-results");
+      const bulkCountPreview = document.getElementById("bulk-count-preview");
+      const btnDoBulkCancel = document.getElementById("btn-do-bulk-cancel");
+
+      function parseBulkIds(text) {
+        return text
+          .split(/[\n,]+/)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+      }
+
+      function openBulkModal() {
+        bulkIdsInput.value = "";
+        bulkIdsInput.disabled = false;
+        bulkProgress.classList.add("hidden");
+        bulkProgress.textContent = "";
+        bulkResults.classList.add("hidden");
+        bulkResults.innerHTML = "";
+        bulkCountPreview.textContent = "";
+        btnDoBulkCancel.disabled = false;
+        btnDoBulkCancel.textContent = "Cancel All";
+        bulkModal.classList.remove("hidden");
+      }
+
+      function closeBulkModal() {
+        bulkModal.classList.add("hidden");
+      }
+
+      document
+        .getElementById("btn-bulk-cancel")
+        .addEventListener("click", openBulkModal);
+      document
+        .getElementById("bulk-cancel-close")
+        .addEventListener("click", closeBulkModal);
+      document
+        .getElementById("bulk-cancel-close2")
+        .addEventListener("click", closeBulkModal);
+
+      bulkIdsInput.addEventListener("input", () => {
+        const ids = parseBulkIds(bulkIdsInput.value);
+        bulkCountPreview.textContent = ids.length
+          ? `${ids.length} ID(s) detected`
+          : "";
+      });
+
+      btnDoBulkCancel.addEventListener("click", async () => {
+        const ids = parseBulkIds(bulkIdsInput.value);
+        if (!ids.length) {
+          alert("Please enter at least one subscription ID.");
+          return;
+        }
+        if (
+          !confirm(
+            `Cancel ${ids.length} subscription(s)?\nThis cannot be undone.`
+          )
+        )
+          return;
+
+        btnDoBulkCancel.disabled = true;
+        bulkIdsInput.disabled = true;
+        bulkProgress.classList.remove("hidden");
+        bulkResults.classList.remove("hidden");
+        bulkResults.innerHTML = "";
+
+        let success = 0,
+          failed = 0;
+
+        for (let i = 0; i < ids.length; i++) {
+          const id = ids[i];
+          bulkProgress.textContent = `Cancelling ${i + 1} of ${ids.length}…`;
+
+          const row = document.createElement("div");
+          row.className = "flex items-center gap-2";
+          row.innerHTML = `<span class="text-gray-500 truncate">${id}</span><span class="text-yellow-500 shrink-0">pending…</span>`;
+          bulkResults.appendChild(row);
+          bulkResults.scrollTop = bulkResults.scrollHeight;
+
+          try {
+            const res = await fetch(`/api/subscriptions/${id}/cancel`, {
+              method: "POST",
+            });
+            if (!res.ok) {
+              const e = await res.json().catch(() => ({}));
+              row.innerHTML = `<span class="text-gray-700 truncate">${id}</span><span class="text-red-500 shrink-0">✗ ${e.error || res.statusText}</span>`;
+              failed++;
+            } else {
+              row.innerHTML = `<span class="text-gray-700 truncate">${id}</span><span class="text-green-600 shrink-0">✓ Cancelled</span>`;
+              const sub = allData.find((s) => s.id === id);
+              if (sub) sub.attributes.status = "cancelled";
+              success++;
+            }
+          } catch (e) {
+            row.innerHTML = `<span class="text-gray-700 truncate">${id}</span><span class="text-red-500 shrink-0">✗ ${e.message}</span>`;
+            failed++;
+          }
+
+          bulkResults.scrollTop = bulkResults.scrollHeight;
+        }
+
+        bulkProgress.textContent = `Done — ${success} cancelled, ${failed} failed.`;
+        bulkIdsInput.disabled = false;
+        btnDoBulkCancel.disabled = false;
+        btnDoBulkCancel.textContent = "Cancel All";
+
+        updateStats();
+        renderTable();
+      });
 
       // ─── Export CSV ───────────────────────────────────────────────────────
       document.getElementById("btn-export").addEventListener("click", () => {

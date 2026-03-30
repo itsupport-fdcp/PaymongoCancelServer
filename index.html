@@ -435,7 +435,8 @@
         if (EWALLET[type]) {
           return `<span class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600">${EWALLET[type]}</span>`;
         }
-        if (type) return `<span class="text-sm text-gray-700 capitalize">${type}</span>`;
+        if (type)
+          return `<span class="text-sm text-gray-700 capitalize">${type}</span>`;
         return '<span class="text-gray-400 text-sm">—</span>';
       }
 
@@ -596,7 +597,9 @@
         const filtered = allData.filter((sub) => {
           const a = sub.attributes;
           const email = (customerCache[a.customer_id] || "").toLowerCase();
-          const piId = (a.latest_invoice?.payment_intent?.id || "").toLowerCase();
+          const piId = (
+            a.latest_invoice?.payment_intent?.id || ""
+          ).toLowerCase();
           return (
             (!search ||
               sub.id.toLowerCase().includes(search) ||

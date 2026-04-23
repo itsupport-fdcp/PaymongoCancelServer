@@ -148,6 +148,33 @@ app.get("/api/payments", async (req, res) => {
   }
 });
 
+app.get("/api/subscriptions/:id/payments", async (req, res) => {
+  try {
+    const subId = req.params.id;
+    let allPayments = [];
+    let after = null;
+
+    while (true) {
+      let url = `${BASE_URL}/payments?limit=50&filter[subscription_id]=${encodeURIComponent(subId)}`;
+      if (after) url += `&after=${after}`;
+      const result = await paymongGet(url);
+      const batch = result.data || [];
+      allPayments.push(...batch);
+      if (result.has_more && batch.length > 0) {
+        after = batch[batch.length - 1].id;
+      } else {
+        break;
+      }
+    }
+
+    allPayments.sort((a, b) => (b.attributes.created_at || 0) - (a.attributes.created_at || 0));
+    res.json({ data: allPayments });
+  } catch (err) {
+    console.error("Sub payments fetch error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });

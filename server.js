@@ -11,28 +11,58 @@ const AUTH = "Basic " + Buffer.from(API_KEY + ":").toString("base64");
 
 app.use(express.static(path.join(__dirname)));
 
-function paymongGet(url) {
+const agent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 5,
+});
+
+function paymongGet(url, retries = 3) {
   return new Promise((resolve, reject) => {
     const options = {
+      agent,
       headers: {
         Authorization: AUTH,
         "Content-Type": "application/json",
       },
     };
-    https
+    const req = https
       .get(url, options, (res) => {
         let raw = "";
         res.on("data", (chunk) => (raw += chunk));
         res.on("end", () => {
+          if (res.statusCode === 408 || res.statusCode === 429 || res.statusCode >= 500) {
+            if (retries > 0) {
+              console.log(`Retrying ${url} due to ${res.statusCode}. Retries left: ${retries - 1}`);
+              return setTimeout(() => {
+                paymongGet(url, retries - 1).then(resolve).catch(reject);
+              }, 1000);
+            }
+          }
           if (res.statusCode >= 400) {
             return reject(
               new Error(`PayMongo error ${res.statusCode}: ${raw}`),
             );
           }
-          resolve(JSON.parse(raw));
+          try {
+            resolve(JSON.parse(raw));
+          } catch (e) {
+            reject(new Error(`Invalid JSON from PayMongo: ${raw}`));
+          }
         });
       })
-      .on("error", reject);
+      .on("error", (err) => {
+        if (retries > 0) {
+          console.log(`Retrying ${url} due to error: ${err.message}. Retries left: ${retries - 1}`);
+          return setTimeout(() => {
+            paymongGet(url, retries - 1).then(resolve).catch(reject);
+          }, 1000);
+        }
+        reject(err);
+      });
+      
+    req.setTimeout(15000, () => {
+      req.destroy(new Error("Request Timeout"));
+    });
   });
 }
 
@@ -65,6 +95,7 @@ app.post("/api/subscriptions/:id/cancel", async (req, res) => {
     const parsed = new URL(url);
     const result = await new Promise((resolve, reject) => {
       const options = {
+        agent,
         hostname: parsed.hostname,
         path: parsed.pathname,
         method: "POST",

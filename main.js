@@ -23,6 +23,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     title: "PayMongo Subscription Viewer",
+    icon: path.join(__dirname, "assets", "icon.ico"),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

@@ -88,7 +88,7 @@
           </h1>
         </div>
         <div class="flex items-center gap-3">
-          <div class="relative">
+          <div id="nav-search-container" class="relative hidden">
             <span
               class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
             >
@@ -109,13 +109,27 @@
             <input
               type="text"
               id="search"
-              placeholder="Search ID or email..."
+              placeholder="Filter dashboard..."
               class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-paymongo focus:border-paymongo sm:text-sm transition"
             />
           </div>
           <button
-            id="btn-export"
+            id="btn-nav-home"
             class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-paymongo transition-colors"
+          >
+            <svg
+              class="w-4 h-4 mr-1.5 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            Home
+          </button>
+          <button
+            id="btn-export"
+            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-paymongo transition-colors hidden"
           >
             <svg
               class="w-4 h-4 mr-1.5 text-gray-500"
@@ -134,7 +148,7 @@
           </button>
           <button
             id="btn-bulk-cancel"
-            class="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md shadow-sm text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+            class="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md shadow-sm text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors hidden"
           >
             <svg
               class="w-4 h-4 mr-1.5 text-red-500"
@@ -153,7 +167,7 @@
           </button>
           <button
             id="btn-load"
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-paymongo hover:bg-paymongo-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-paymongo transition-colors"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-paymongo hover:bg-paymongo-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-paymongo transition-colors hidden"
           >
             Refresh Data
           </button>
@@ -162,7 +176,64 @@
     </nav>
 
     <main class="w-full px-4 sm:px-6 py-8">
-      <!-- Stats -->
+      <!-- Home View -->
+      <div id="home-view" class="flex flex-col items-center justify-center min-h-[60vh]">
+        <div class="w-20 h-20 bg-paymongo rounded-2xl flex items-center justify-center mb-6 shadow-md transform hover:scale-105 transition-transform">
+          <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-8 text-center">
+          PayMongo Search
+        </h2>
+        <div class="w-full max-w-2xl relative group">
+          <span class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+            <svg class="h-6 w-6 text-gray-400 group-hover:text-paymongo transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            id="home-search"
+            placeholder="Search email or Payment Intent ID (e.g. pi_...)"
+            class="block w-full pl-14 pr-6 py-4 border border-gray-200 rounded-full text-lg shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-paymongo focus:border-paymongo transition-all bg-white"
+          />
+        </div>
+        <div class="mt-8 flex gap-4 flex-wrap justify-center">
+          <button id="btn-home-search" class="px-8 py-3 bg-gray-50 text-gray-700 font-medium rounded-md hover:bg-gray-100 hover:text-gray-900 focus:outline-none transition-colors border border-gray-200">
+            Search
+          </button>
+          <button id="btn-go-dashboard" class="px-8 py-3 bg-white text-gray-600 font-medium rounded-md hover:bg-gray-50 hover:text-gray-800 border border-transparent hover:border-gray-200 focus:outline-none transition-all">
+            Open Dashboard
+          </button>
+        </div>
+        
+        <!-- Search Results Area -->
+        <div id="home-results-container" class="w-full max-w-5xl mt-12 hidden">
+          <div class="bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Email</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Amount</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="home-table-body" class="bg-white divide-y divide-gray-200">
+                  <!-- Results go here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard View -->
+      <div id="dashboard-view" class="hidden">
+        <!-- Stats -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
           <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">
@@ -340,6 +411,7 @@
             <option value="100">100</option>
           </select>
         </div>
+      </div>
       </div>
     </main>
 
@@ -596,6 +668,92 @@
       // ─── Load ─────────────────────────────────────────────────────────────
       let abortController = null;
 
+      async function performSearch() {
+        const query = document.getElementById("home-search").value.trim();
+        if (!query) return;
+
+        if (abortController) abortController.abort();
+        abortController = new AbortController();
+        const btn = document.getElementById("btn-home-search");
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-500 inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>Searching...`;
+
+        const resultsContainer = document.getElementById("home-results-container");
+        const homeTbody = document.getElementById("home-table-body");
+        resultsContainer.classList.remove("hidden");
+        homeTbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500"><svg class="animate-spin mx-auto h-6 w-6 text-paymongo" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg><p class="mt-2 text-sm">Searching records...</p></td></tr>`;
+
+        try {
+          const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: abortController.signal });
+          if (!res.ok) throw new Error(`Error ${res.status}`);
+          const result = await res.json();
+          allData = result.data || [];
+          
+          if (allData.length === 0) {
+             homeTbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-gray-400 italic">No subscriptions found for "${query}".</td></tr>`;
+             return;
+          }
+
+          const cids = [...new Set(allData.map(s => s.attributes.customer_id).filter(Boolean))];
+          await Promise.all(cids.map(fetchEmail));
+
+          homeTbody.innerHTML = allData.map(sub => {
+            const a = sub.attributes;
+            const amount = a.plan?.amount != null ? `PHP ${(a.plan.amount / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "—";
+            const actionCell = a.status === "active" || a.status === "unpaid"
+              ? `<button class="cancel-btn inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors" data-id="${sub.id}">Cancel</button>`
+              : `<span class="text-xs text-gray-300">—</span>`;
+            return `<tr data-id="${sub.id}" class="hover:bg-gray-50 cursor-pointer transition-colors">
+              <td class="px-6 py-4 text-xs font-mono text-gray-500">${sub.id}</td>
+              <td class="px-6 py-4"><span class="${getBadge(a.status)}">${a.status}</span></td>
+              <td class="px-6 py-4 text-sm font-medium text-gray-900">${customerCache[a.customer_id] || "—"}</td>
+              <td class="px-6 py-4 text-sm font-bold text-gray-900">${amount}</td>
+              <td class="px-6 py-4">${actionCell}</td>
+            </tr>`;
+          }).join("");
+
+        } catch (err) {
+          if (err.name === "AbortError") return;
+          homeTbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-red-400">Search Failed: ${err.message}</td></tr>`;
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Search";
+        }
+      }
+
+      function showDashboard() {
+        document.getElementById("home-view").classList.add("hidden");
+        document.getElementById("dashboard-view").classList.remove("hidden");
+        document.getElementById("nav-search-container").classList.remove("hidden");
+        document.getElementById("btn-export").classList.remove("hidden");
+        document.getElementById("btn-bulk-cancel").classList.remove("hidden");
+        document.getElementById("btn-load").classList.remove("hidden");
+      }
+
+      function showHome() {
+        document.getElementById("dashboard-view").classList.add("hidden");
+        document.getElementById("home-view").classList.remove("hidden");
+        document.getElementById("nav-search-container").classList.add("hidden");
+        document.getElementById("btn-export").classList.add("hidden");
+        document.getElementById("btn-bulk-cancel").classList.add("hidden");
+        document.getElementById("btn-load").classList.add("hidden");
+        document.getElementById("home-results-container").classList.add("hidden");
+      }
+
+      document.getElementById("btn-go-dashboard").addEventListener("click", () => {
+        showDashboard();
+        if (allData.length === 0) {
+          loadAll();
+        }
+      });
+      
+      document.getElementById("btn-nav-home").addEventListener("click", showHome);
+      
+      document.getElementById("btn-home-search").addEventListener("click", performSearch);
+      document.getElementById("home-search").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") performSearch();
+      });
+
       async function loadAll() {
         if (abortController) abortController.abort();
         abortController = new AbortController();
@@ -627,7 +785,10 @@
 
       async function fetchPages(after, signal) {
         const statusEl = document.getElementById("status");
-        let url = `/api/subscriptions?limit=50`;
+        // PayMongo's subscriptions endpoint has a ~5s server-side timeout that
+        // scales with page size; limit=50 takes >5s and returns 408. Keep pages
+        // small (limit=20 ≈ 2.4s) and rely on pagination below to fetch all pages.
+        let url = `/api/subscriptions?limit=20`;
         if (after) url += `&after=${after}`;
 
         const res = await fetch(url, { signal });
@@ -825,7 +986,7 @@
       }
 
       // ─── Table delegation ─────────────────────────────────────────────────
-      document.getElementById("table-body").addEventListener("click", (e) => {
+      function handleTableRowClick(e) {
         const cb = e.target.closest(".cancel-btn");
         if (cb) {
           e.stopPropagation();
@@ -837,7 +998,10 @@
           const s = allData.find((x) => x.id === row.dataset.id);
           if (s) openDrawer(s);
         }
-      });
+      }
+
+      document.getElementById("table-body").addEventListener("click", handleTableRowClick);
+      document.getElementById("home-table-body").addEventListener("click", handleTableRowClick);
 
       // ─── Pagination wiring ────────────────────────────────────────────────
       document.getElementById("btn-first").addEventListener("click", () => {

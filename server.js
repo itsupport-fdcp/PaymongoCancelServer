@@ -68,7 +68,9 @@ function paymongGet(url, retries = 3) {
 
 app.get("/api/subscriptions", async (req, res) => {
   try {
-    const { limit = 50, after, before, status } = req.query;
+    // Cap page size: PayMongo's subscriptions endpoint returns 408 when a page
+    // takes longer than its ~5s server-side timeout to compute (limit=50 ≈ 5s+).
+    const { limit = 20, after, before, status } = req.query;
     let url = `${BASE_URL}/subscriptions?limit=${limit}`;
     if (after) url += `&after=${after}`;
     if (before) url += `&before=${before}`;
@@ -202,6 +204,127 @@ app.get("/api/subscriptions/:id/payments", async (req, res) => {
     res.json({ data: allPayments });
   } catch (err) {
     console.error("Sub payments fetch error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Cache to prevent fetching all subscriptions repeatedly
+let searchCache = {
+  timestamp: 0,
+  data: []
+};
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+app.get("/api/search", async (req, res) => {
+  try {
+    const query = (req.query.q || "").trim();
+    if (!query) {
+      return res.status(400).json({ error: "Query is required" });
+    }
+
+    const lowerQuery = query.toLowerCase();
+
+    // --- Direct ID Searches (Fast Path) ---
+    // 1. Payment Intent ID
+    if (query.startsWith("pi_")) {
+      try {
+        const piRes = await paymongGet(`${BASE_URL}/payment_intents/${query}`);
+        const desc = piRes.data?.attributes?.description || "";
+        const match = desc.match(/(subs_[a-zA-Z0-9]+)/);
+        if (match) {
+          const subId = match[1];
+          const subRes = await paymongGet(`${BASE_URL}/subscriptions/${subId}`);
+          if (subRes.data) return res.json({ data: [subRes.data] });
+        }
+      } catch (err) {
+        console.log("PI search error:", err.message);
+      }
+      return res.json({ data: [] });
+    }
+
+    // 2. Subscription ID
+    if (query.startsWith("subs_") || query.startsWith("sub_")) {
+      try {
+        const subRes = await paymongGet(`${BASE_URL}/subscriptions/${query}`);
+        if (subRes.data) return res.json({ data: [subRes.data] });
+      } catch (err) {
+        console.log("Sub search error:", err.message);
+      }
+      return res.json({ data: [] });
+    }
+
+    // 3. Invoice ID
+    if (query.startsWith("inv_")) {
+      try {
+        const invRes = await paymongGet(`${BASE_URL}/subscriptions/invoices/${query}`);
+        const subId = invRes.data?.attributes?.subscription?.id;
+        if (subId) {
+          const subRes = await paymongGet(`${BASE_URL}/subscriptions/${subId}`);
+          if (subRes.data) return res.json({ data: [subRes.data] });
+        }
+      } catch (err) {
+        console.log("Invoice search error:", err.message);
+      }
+      return res.json({ data: [] });
+    }
+
+    // --- Email Search (Slow Path using Cache) ---
+    let allSubs = [];
+    
+    // Use cache if valid
+    if (Date.now() - searchCache.timestamp < CACHE_TTL && searchCache.data.length > 0) {
+      allSubs = searchCache.data;
+    } else {
+      let after = null;
+      // Fetch all subscriptions to search through. limit=20 prevents PayMongo 408 timeouts.
+      while (true) {
+        let url = `${BASE_URL}/subscriptions?limit=20`;
+        if (after) url += `&after=${after}`;
+        const result = await paymongGet(url);
+        const batch = result.data || [];
+        allSubs.push(...batch);
+        if (result.has_more && batch.length > 0) {
+          after = batch[batch.length - 1].id;
+        } else {
+          break;
+        }
+      }
+      
+      // Update cache
+      searchCache.data = allSubs;
+      searchCache.timestamp = Date.now();
+    }
+
+    let found = [];
+
+    // It's an email. We need to fetch customers for the subscriptions.
+    const uniqueCids = [...new Set(allSubs.map(s => s.attributes.customer_id).filter(Boolean))];
+    
+    const customerCache = {};
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < uniqueCids.length; i += BATCH_SIZE) {
+      const cids = uniqueCids.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        cids.map(async (cid) => {
+          try {
+            const res = await paymongGet(`${BASE_URL}/customers/${cid}`);
+            customerCache[cid] = (res.data?.attributes?.email || "").toLowerCase();
+          } catch {
+            customerCache[cid] = "";
+          }
+        })
+      );
+    }
+
+    found = allSubs.filter(sub => {
+      const cid = sub.attributes.customer_id;
+      const email = customerCache[cid] || "";
+      return email.includes(lowerQuery);
+    });
+
+    res.json({ data: found });
+  } catch (err) {
+    console.error("Search error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
